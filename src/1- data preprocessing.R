@@ -158,11 +158,11 @@ df[, iucn_category := desc[iucn_category]]
 
 
 #-------------------------------------------------
-# Step 2.3 Extract Countries 
+# Step 2.3.1 Extract Countries 
 #-------------------------------------------------
 
 # APIfrom the chatbox Zhipu AI
-api_key <- "e0c58cca01494542ae71d02e29903714.BqhAw1KSzYBKr4xn"
+api_key <- "52e75185b4724fb2808a242c80c2b6e2.BwqiGDLC2ODcELSj"
 
 # Function that asks chatbox to give a country based on abstract
 ask_main_country_zhipu <- function(abstract_text) {
@@ -241,8 +241,9 @@ df[, country := vapply(abstract,
                        FUN.VALUE = character(1))]
 
 
-
-
+#-------------------------------------------------
+# Step 2.3.2 Link countries to shapefile names 
+#-------------------------------------------------
 
 
 
