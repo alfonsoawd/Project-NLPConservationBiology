@@ -12,8 +12,10 @@
 #-------------------------------------------------
 # Step 1.1 Load required libraries
 #-------------------------------------------------
+
 packages = c("data.table", "rstudioapi", "tokenizers", "cld3", "textclean",
-             "stringr", "stopwords", "textstem", "taxize", "httr", "jsonlite")
+             "stringr", "stopwords", "textstem", "taxize", "httr", "jsonlite",
+             "rredlist")
 
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -25,6 +27,7 @@ for (pkg in packages) {
 #-------------------------------------------------
 # Step 1.2 Define working directory and paths
 #-------------------------------------------------
+
 current_folder = dirname(rstudioapi::getActiveDocumentContext()$path)
 setwd(current_folder)
 project_folder = dirname(getwd())
@@ -33,6 +36,7 @@ path_data = file.path(project_folder, "data", "data.csv")
 #-------------------------------------------------
 # Step 1.3 Import data
 #-------------------------------------------------
+
 df = fread(path_data)
 df = df[, .(year = YEAR, abstract = WoS_FIELD)]
 
@@ -78,7 +82,7 @@ Sys.setenv(ENTREZ_KEY = "5bde37ee498f8c35345796f089823e375f08")
 #------ General code ------#
 
 df[, c("genus","order","class","kingdom") := {
-  ti <- tax_name(taxa,
+  ti = taxize::tax_name(taxa,
                  get = c("genus","order","class","kingdom"),
                  db  = "ncbi")
   list(ti$genus, ti$order, ti$class, ti$kingdom)}]
@@ -91,7 +95,7 @@ df_miss = df[(!is.na(df[,taxa])) & is.na(df[,genus])]
 df_miss[, taxa := word(taxa, 1, 1)]
 # Rerun code for previously missing rows
 df_miss[, c("genus","order","class","kingdom") := {
-  ti <- tax_name(taxa,
+  ti = taxize::tax_name(taxa,
                  get = c("genus","order","class","kingdom"),
                  db  = "ncbi")
   list(ti$genus, ti$order, ti$class, ti$kingdom)}]
@@ -102,8 +106,59 @@ df[df_miss,
    c("genus","order","class","kingdom") := .(i.genus, i.order, i.class, i.kingdom),
    on = "V1"]
 
+
 #-------------------------------------------------
-# Step 2.2 Extract countries 
+# Step 2.2 Extract IUCN Red List Categories
+#-------------------------------------------------
+
+## 2.2.1 Set your IUCN API key (replace with your own)
+Sys.setenv(IUCN_REDLIST_KEY = "hmV2Kvxts1XdB2bLGghNX1rRh6yKDB4BR24c")
+
+## 2.2.2 Keep only the first two words of ‘taxa’ and split into Genus + Species
+df[, taxa := word(taxa, 1, 2)]  
+df[, c("Genus","Species") := tstrsplit(taxa, " ", fixed = TRUE)]
+
+## 2.2.3 Define function to fetch the latest IUCN assessment safely
+get_iucn_latest = function(genus, species) {
+  out = tryCatch(
+    rl_species_latest(genus   = genus,
+                      species = species,
+                      parse   = TRUE),
+    error = function(e) NULL
+  )
+  if (is.null(out)) {
+    # no assessment found or API error → return NAs
+    return(list(NA_integer_, NA_character_))
+  }
+  # extract SIS‐ID and Red List category code
+  list(out$taxon$sis_id,
+       out$red_list_category$code)
+}
+
+## 2.2.4 Apply function by Genus+Species to add iucn_id + iucn_category
+df[, c("iucn_id","iucn_category") := 
+       get_iucn_latest(genus, Species),
+     by = .(genus, Species)]
+
+## 2.2.5 Build lookup vector of full category descriptions
+desc = c(
+  EX = "Extinct – no reasonable doubt that the last individual has died.",
+  EW = "Extinct in the Wild – survives only in cultivation or in captivity.",
+  CR = "Critically Endangered – facing an extremely high risk of extinction in the wild.",
+  EN = "Endangered – facing a very high risk of extinction in the wild.",
+  VU = "Vulnerable – facing a high risk of extinction in the wild.",
+  NT = "Near Threatened – close to qualifying for a threatened category in the near future.",
+  LC = "Least Concern – evaluated and found to be at low risk of extinction.",
+  DD = "Data Deficient – insufficient information to assess its risk of extinction.",
+  NE = "Not Evaluated – has not yet been assessed against the IUCN criteria."
+)
+
+## 2.2.6 Recode the 2-letter codes to full descriptions in-place
+df[, iucn_category := desc[iucn_category]]
+
+
+#-------------------------------------------------
+# Step 2.3 Extract Countries 
 #-------------------------------------------------
 
 # APIfrom the chatbox Zhipu AI
@@ -184,11 +239,6 @@ ask_main_country_zhipu <- function(abstract_text) {
 df[, country := vapply(abstract,
                        ask_main_country_zhipu,
                        FUN.VALUE = character(1))]
-
-
-#-------------------------------------------------
-# Step 2.3 (Optional) Extract other entities 
-#-------------------------------------------------
 
 
 
