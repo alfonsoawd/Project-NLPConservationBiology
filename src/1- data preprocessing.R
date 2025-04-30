@@ -77,7 +77,7 @@ df[, taxa := vapply(abstract, get_first_species, FUN.VALUE = character(1))]
 #-------------------------------------------------
 
 # Replace the string below with your actual API key (for "ncbi" use)
-Sys.setenv(ENTREZ_KEY = "5bde37ee498f8c35345796f089823e375f08")
+Sys.setenv(ENTREZ_KEY = "ReplaceWithYourKeyAPI")
 
 #------ General code ------#
 
@@ -112,7 +112,7 @@ df[df_miss,
 #-------------------------------------------------
 
 ## 2.2.1 Set your IUCN API key (replace with your own)
-Sys.setenv(IUCN_REDLIST_KEY = "hmV2Kvxts1XdB2bLGghNX1rRh6yKDB4BR24c")
+Sys.setenv(IUCN_REDLIST_KEY = "ReplaceWithYourKeyAPI")
 
 ## 2.2.2 Keep only the first two words of ‘taxa’ and split into Genus + Species
 df[, taxa := word(taxa, 1, 2)]  
@@ -162,7 +162,7 @@ df[, iucn_category := desc[iucn_category]]
 #-------------------------------------------------
 
 # APIfrom the chatbox Zhipu AI
-api_key <- "52e75185b4724fb2808a242c80c2b6e2.BwqiGDLC2ODcELSj"
+api_key <- "ReplaceWithYourKeyAPI"
 
 # Function that asks chatbox to give a country based on abstract
 ask_main_country_zhipu <- function(abstract_text) {
