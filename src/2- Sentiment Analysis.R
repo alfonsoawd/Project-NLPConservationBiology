@@ -37,7 +37,7 @@ project_folder = dirname(getwd())
 path_data = file.path(project_folder, "data", "data_with_info.csv")
 
 # Path to save final output
-path_save = file.path(project_folder, "data", "data_with_info.csv")
+path_save = file.path(project_folder, "data", "data_with_score.csv")
 
 #-------------------------------------------------
 # Step 0.3 Import data
@@ -80,38 +80,70 @@ df = df[year>=1987]
 df[, clean_abstract := abstract]
 df[, clean_abstract := replace_url(replace_html(clean_abstract))]
 df[, clean_abstract := tolower(clean_abstract)]
-df[, clean_abstract := str_replace_all(clean_abstract, "[[:punct:]]+", " ")]
 df[, clean_abstract := str_replace_all(clean_abstract, "[[:digit:]]+", " ")]
 df[, clean_abstract := str_squish(clean_abstract)]
 
 # Lemmatize abstracts
 df[, clean_abstract_lemm := lemmatize_strings(clean_abstract)]
 
+# Tokenize abstracts into sentences
+df[, sentences := lapply(clean_abstract, get_sentences)]
+
 
 # ============================================================
 # PART 2 - Output
 # ============================================================
 
-# ── 1) Compute raw scores ──
-df[, sentences := lapply(clean_abstract_lemm, get_sentences)]
+# 1) Function to compute the average sentiment of a vector of sentences 
+compute_avg_sentiment = function(sentences, method) {
+  scores = if (method == "sentimentr") {
+    sentiment(sentences)$sentiment
+  } else {
+    get_sentiment(sentences, method = method)
+  }
+  mean(scores, na.rm = TRUE)
+}
 
-methods <- c("bing","afinn","nrc","syuzhet","sentimentr")
+# 2) Define sentiment methods 
+sentiment_methods = c("bing", "afinn", "nrc", "syuzhet", "sentimentr")
 
-# helper for syuzhet methods
-get_score <- function(s, method) mean(get_sentiment(s, method=method), na.rm=TRUE)
+# 3) Compute raw sentiment scores for each method 
+for (m in sentiment_methods) {
+  df[, (m) := sapply(sentences, compute_avg_sentiment, method = m)]
+}
 
-df[, (methods) := lapply(methods, function(m) {
-  if(m!="sentimentr")
-    sapply(sentences, get_score, method=m)
-  else
-    sapply(sentences, function(s) mean(sentiment(s)$sentiment, na.rm=TRUE))
-})]
+# 4) Z-score standardize each method’s scores
+z_cols = paste0(sentiment_methods, "_z")
+df[, (z_cols) := lapply(.SD, function(x) {
+  (x - mean(x,   na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}), .SDcols = sentiment_methods]
 
-# ── 2) Z-score standardization ──
-zcols <- paste0(methods, "_z")
-df[, (zcols) := lapply(.SD, function(x) (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)),
-   .SDcols = methods]
+# 5) Build an ensemble by averaging the Z-scores
+df[, ensemble_z := rowMeans(.SD, na.rm = TRUE), .SDcols = z_cols]
 
-# ── 3) Ensemble on Z-scores ──
-df[, ensemble_z := rowMeans(.SD, na.rm=TRUE), .SDcols = zcols]
+
+#--------- EXPORT ---------#
+
+# selecting columns
+df_final = df[, .(
+  year,
+  abstract,
+  clean_abstract_lemm,
+  genus = Genus,
+  order,
+  class,
+  kingdom,
+  species = Species,
+  iucn_cat = iucn_category,
+  country = country_name,
+  bing_z,
+  afinn_z,
+  nrc_z,
+  syuzhet_z,
+  sentimentr_z,
+  ensemble_z
+)]
+
+# export as csv
+write.csv(df_final, file = path_save)
 
