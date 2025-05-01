@@ -13,9 +13,9 @@
 # Step 0.1 Load required libraries
 #-------------------------------------------------
 
-packages = c("data.table", "rstudioapi", "tokenizers", "cld3", "textclean",
-             "stringr", "stopwords", "textstem", "taxize", "httr", "jsonlite",
-             "rredlist", "sf", "stringi", "syuzhet", "sentimentr")
+packages = c("data.table", "tokenizers", "cld3", "textclean",
+             "stringr", "stopwords", "textstem", "httr", "jsonlite",
+             "stringi", "syuzhet", "sentimentr")
 
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {

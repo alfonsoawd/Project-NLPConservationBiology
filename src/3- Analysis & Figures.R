@@ -13,9 +13,9 @@
 # Step 0.1 Load required libraries
 #-------------------------------------------------
 
-packages = c("data.table", "rstudioapi", "tokenizers", "cld3", "textclean",
-             "stringr", "stopwords", "textstem", "taxize", "httr", "jsonlite",
-             "rredlist", "sf", "stringi")
+packages = c("data.table", "tokenizers", "cld3", "textclean",
+             "stringr", "stopwords", "textstem", "httr", "jsonlite",
+             "stringi", "syuzhet", "sentimentr")
 
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -34,31 +34,17 @@ setwd(current_folder)
 project_folder = dirname(getwd())
 
 # Path to abstract data
-path_data = file.path(project_folder, "data", "data.csv")
-
-# Path to world countries Shapefile
-path_shp = file.path(project_folder, "data", "World Shapefile", 
-                     "world-administrative-boundaries.shp")
-
-# Path to mapping table
-path_map = file.path(project_folder, "data", "country_mapping.csv")
+path_data = file.path(project_folder, "data", "data_with_info.csv")
 
 # Path to save final output
-path_save = file.path(project_folder, "data", "data_with_info.csv")
+path_save = file.path(project_folder, "data", "data_with_score.csv")
 
 #-------------------------------------------------
 # Step 0.3 Import data
 #-------------------------------------------------
 
-# Import abstract data / rename columns
+# Import data with informations
 df = fread(path_data, na.strings = c("", "NA"))
-df = df[, .(year = YEAR, abstract = WoS_FIELD)]
-
-# Import shapefile data
-shp = as.data.table(st_read(path_shp))
-
-# Import mapping table (for variants of country names)
-mapping_table = fread(path_map, na.strings = c("", "NA"))
 
 
 # ============================================================
