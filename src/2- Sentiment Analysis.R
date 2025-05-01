@@ -15,7 +15,7 @@
 
 packages = c("data.table", "rstudioapi", "tokenizers", "cld3", "textclean",
              "stringr", "stopwords", "textstem", "taxize", "httr", "jsonlite",
-             "rredlist", "sf", "stringi")
+             "rredlist", "sf", "stringi", "syuzhet", "sentimentr")
 
 for (pkg in packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -34,14 +34,7 @@ setwd(current_folder)
 project_folder = dirname(getwd())
 
 # Path to abstract data
-path_data = file.path(project_folder, "data", "data.csv")
-
-# Path to world countries Shapefile
-path_shp = file.path(project_folder, "data", "World Shapefile", 
-                     "world-administrative-boundaries.shp")
-
-# Path to mapping table
-path_map = file.path(project_folder, "data", "country_mapping.csv")
+path_data = file.path(project_folder, "data", "data_with_info.csv")
 
 # Path to save final output
 path_save = file.path(project_folder, "data", "data_with_info.csv")
@@ -50,15 +43,8 @@ path_save = file.path(project_folder, "data", "data_with_info.csv")
 # Step 0.3 Import data
 #-------------------------------------------------
 
-# Import abstract data / rename columns
+# Import data with informations
 df = fread(path_data, na.strings = c("", "NA"))
-df = df[, .(year = YEAR, abstract = WoS_FIELD)]
-
-# Import shapefile data
-shp = as.data.table(st_read(path_shp))
-
-# Import mapping table (for variants of country names)
-mapping_table = fread(path_map, na.strings = c("", "NA"))
 
 
 # ============================================================
@@ -86,8 +72,10 @@ df[, abstract := vapply(abstract, function(text) {
 
 # Number of abstract per year
 df[, .(num_abstracts = .N), by = year][order(year)]
+
 # We keep only year >= 1987
 df = df[year>=1987]
+
 # Create a cleaned version of each abstract
 df[, clean_abstract := abstract]
 df[, clean_abstract := replace_url(replace_html(clean_abstract))]
@@ -95,29 +83,35 @@ df[, clean_abstract := tolower(clean_abstract)]
 df[, clean_abstract := str_replace_all(clean_abstract, "[[:punct:]]+", " ")]
 df[, clean_abstract := str_replace_all(clean_abstract, "[[:digit:]]+", " ")]
 df[, clean_abstract := str_squish(clean_abstract)]
+
 # Lemmatize abstracts
 df[, clean_abstract_lemm := lemmatize_strings(clean_abstract)]
-
-
-#-------------------------------------------------
-# Step 1.3 Create corpus
-#-------------------------------------------------
-
-# (tm::VCorpus with DataframeSource)
-
 
 
 # ============================================================
 # PART 2 - Output
 # ============================================================
 
-# ---- Step 5.1 Save cleaned abstracts ----
-# (Insert export code, e.g., write.csv)
+# ── 1) Compute raw scores ──
+df[, sentences := lapply(clean_abstract_lemm, get_sentences)]
 
-# ---- Step 5.2 Save extracted information ----
-# (Insert saving code for taxa/countries)
+methods <- c("bing","afinn","nrc","syuzhet","sentimentr")
 
-# ---- Step 5.3 (Optional) Save corpus or DTM ----
-# (Save objects if needed for later analyses)
+# helper for syuzhet methods
+get_score <- function(s, method) mean(get_sentiment(s, method=method), na.rm=TRUE)
 
+df[, (methods) := lapply(methods, function(m) {
+  if(m!="sentimentr")
+    sapply(sentences, get_score, method=m)
+  else
+    sapply(sentences, function(s) mean(sentiment(s)$sentiment, na.rm=TRUE))
+})]
+
+# ── 2) Z-score standardization ──
+zcols <- paste0(methods, "_z")
+df[, (zcols) := lapply(.SD, function(x) (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)),
+   .SDcols = methods]
+
+# ── 3) Ensemble on Z-scores ──
+df[, ensemble_z := rowMeans(.SD, na.rm=TRUE), .SDcols = zcols]
 
