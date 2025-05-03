@@ -494,9 +494,9 @@ iucn_map <- tibble(
 ## 7.3 ─ Sample one point per country polygon for each minor mention ----------
 df_pts <- df_map %>%
   filter(!is.na(iucn_cat)) %>%
-  mutate(full2 = if_else(iucn_cat %in% c(full_iucn$EW, full_iucn$EX), full_iucn$EW, iucn_cat)) %>%
+  mutate(full2 = if_else(iucn_cat %in% c(ew_full, ex_full), ew_full, iucn_cat)) %>%
   left_join(iucn_map, by = c("full2" = "full")) %>%
-  filter(!is.na(label)) %>%
+  filter(!is.na(label), !st_is_empty(geometry)) %>%   # remove NA labels
   rowwise() %>%
   mutate(pt = st_sample(geometry, 1)) %>%
   ungroup() %>%
@@ -521,7 +521,7 @@ p7 <- ggplot() +
   # facets with colored strips
   ggh4x::facet_wrap2(
     ~ factor(label, levels = facets),
-    ncol  = 3,
+    ncol  = 2,
     strip = ggh4x::strip_themed(
       background_x = ggh4x::elem_list_rect(fill = colors)
     )
@@ -536,7 +536,7 @@ p7 <- ggplot() +
 ggsave(
   filename = file.path(path_fig, "fig7_world_facets.png"),
   plot     = p7,
-  width    = 15, height = 15, dpi = 300
+  width    = 10, height = 15, dpi = 300
 )
 
 
