@@ -799,4 +799,125 @@ ggsave(
   plot     = fig9,
   width    = 12, height = 4, dpi = 300
 )
+
+#===============================================================================
+# PART 10─ FIGURE 10: Annual Sentiment Trend + Abstract Counts per IUCN cat
+#===============================================================================
+
+# 10.1 - Define your six labels (merge the two extinct categories)
+cats <- c(
+  "Least Concern",
+  "Near Threatened",
+  "Vulnerable",
+  "Endangered",
+  "Critically Endangered",
+  "Extinct (in the Wild)"
+)
+
+# 10.2 - The colours for each category
+cat_cols <- c(
+  "Least Concern"         = "#66c2a4",  # turquoise pastel
+  "Near Threatened"       = "#b8e186",  # light green
+  "Vulnerable"            = "#ffffb3",  # very soft yellow
+  "Endangered"            = "#fdae61",  # light orange
+  "Critically Endangered" = "#f46d43",  # pastel red
+  "Extinct (in the Wild)" = "#A26769"   # muted maroon
+)
+
+# 10.3 - Simplify raw iucn_cat into those six levels
+df2 <- df %>%
+  mutate(label = case_when(
+    str_detect(iucn_cat, "Least Concern")                             ~ "Least Concern",
+    str_detect(iucn_cat, "Near Threatened")                           ~ "Near Threatened",
+    str_detect(iucn_cat, "Vulnerable –")                              ~ "Vulnerable",
+    str_detect(iucn_cat, "Critically Endangered –")                   ~ "Critically Endangered",
+    str_detect(iucn_cat, "Endangered –") & !str_detect(iucn_cat,"Crit") ~ "Endangered",
+    str_detect(iucn_cat, "Extinct in the Wild") |
+      str_detect(iucn_cat, "Extinct –")                                  ~ "Extinct (in the Wild)",
+    TRUE                                                               ~ NA_character_
+  )) %>%
+  filter(!is.na(label)) %>%
+  mutate(label = factor(label, levels = cats))
+
+# 10.4 - Gather the five model z-scores
+long <- df2 %>%
+  pivot_longer(
+    cols      = c(bing_z, afinn_z, nrc_z, syuzhet_z, sentimentr_z),
+    names_to  = "model",
+    values_to = "z"
+  )
+
+# 10.5 - Compute each model’s mean per category, then ensemble ± sd
+ens_cat <- long %>%
+  group_by(model, label) %>%
+  summarise(mean_z = mean(z, na.rm=TRUE), .groups="drop") %>%
+  group_by(label) %>%
+  summarise(
+    ensemble_z = mean(mean_z),
+    sd_z       = sd(mean_z),
+    .groups    = "drop"
+  )
+
+# 10.6 - Count abstracts per category
+counts_cat <- df2 %>%
+  count(label, name="n")
+
+# 10.7 - Top panel: sentiment + ribbon over discrete categories
+p_top <- ggplot(ens_cat, aes(label, ensemble_z, group=1)) +
+  geom_ribbon(aes(ymin = ensemble_z - sd_z, ymax = ensemble_z + sd_z),
+              fill = "#80B1D3", alpha = 0.4) +
+  geom_line(colour = "#1F78B4", size = 0.8) +
+  geom_point(aes(fill = label),
+             shape = 21, size = 3, colour = "black") +
+  geom_hline(yintercept = 0, colour = "grey70") +
+  scale_fill_manual(values = cat_cols) +
+  scale_x_discrete(expand = expansion(add = 0.5)) +
+  scale_y_continuous(expand = expansion(mult = c(0.05,0.1))) +
+  labs(y = "Sentiment score") +
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+    panel.grid     = element_blank(),
+    axis.title.x   = element_blank(),
+    axis.text.x    = element_blank(),
+    axis.ticks.x   = element_blank(),
+    axis.line.x    = element_line(colour="grey20", size=0.5),
+    axis.line.y    = element_line(colour="grey20", size=0.5),
+    axis.title.y   = element_text(face="bold", size=12),
+    axis.text.y    = element_text(size=10),
+    legend.position = "none",
+    plot.margin    = margin(2,2,2,2)
+  )
+
+# 10.8 - Bottom panel: bar chart of counts
+p_bottom <- ggplot(counts_cat, aes(label, n, fill = label)) +
+  geom_col(width = 0.6, colour = "black", size = 0.2) +
+  scale_fill_manual(values = cat_cols) +
+  scale_x_discrete(expand = expansion(add = 0.5)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "IUCN category", y = "Number of abstracts") +
+  theme_minimal(base_family = "Helvetica") +
+  theme(
+    panel.grid     = element_blank(),
+    axis.title.x   = element_text(face="bold", size=12, margin=margin(t=5)),
+    axis.text.x    = element_text(size=10, angle=25, hjust=1),
+    axis.ticks.x   = element_blank(),
+    axis.line.x    = element_line(colour="grey20", size=0.5),
+    axis.line.y    = element_line(colour="grey20", size=0.5),
+    axis.title.y   = element_text(face="bold", size=12),
+    axis.text.y    = element_text(size=10),
+    legend.position = "none",
+    plot.margin    = margin(2,2,2,2)
+  )
+
+# 10.9 - Stack them 3:1
+final10 <- p_top / p_bottom +
+  plot_layout(heights = c(3,1))
+
+print(final10)
+
+ggsave(
+  filename = file.path(path_fig, "fig10_sentiment_trend_per_cat.png"),
+  plot     = final10,
+  width    = 8, height = 6, dpi = 300
+)
   
