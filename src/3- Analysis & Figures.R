@@ -541,7 +541,7 @@ ggsave(
 
 
 #===============================================================================
-# PART 8 ─ FIGURE 8: Sentiment trends for top-3 species per IUCN category -------------
+# PART 8 ─ FIGURE 8: Sentiment trends for top-3 species per IUCN category 
 #===============================================================================
 
 # 8.1 — Define the five IUCN short labels + panel fill‐colours
@@ -699,5 +699,104 @@ ggsave(
   filename = file.path(path_figs, "fig8_sentiment_by_species.png"),
   plot     = fig7,
   width    = 10, height = 5, dpi = 300
+)
+
+
+#===============================================================================
+# PART 9 ─ FIGURE 9: Sentiment trends per IUCN category 
+#===============================================================================
+
+
+# 9.1 - Define your six IUCN categories and their colours
+cats <- c(
+  "Least Concern", "Near Threatened",
+  "Vulnerable",   "Endangered",
+  "Critically Endangered",
+  "Extinct (in the Wild)"
+)
+cat_cols <- c(
+  "Least Concern"                  = "#66c2a4",
+  "Near Threatened"                = "#b8e186",
+  "Vulnerable"                     = "#ffffb3",
+  "Endangered"                     = "#fdae61",
+  "Critically Endangered"          = "#f46d43",
+  "Extinct (in the Wild)"          = "#8c6bb1"
+)
+
+# 9.2 - Simplify your iucn_cat into exactly those six labels
+df_cat <- df %>%
+  mutate(label = case_when(
+    str_detect(iucn_cat, "Least Concern")                             ~ "Least Concern",
+    str_detect(iucn_cat, "Near Threatened")                           ~ "Near Threatened",
+    str_detect(iucn_cat, "Vulnerable –")                              ~ "Vulnerable",
+    str_detect(iucn_cat, "Critically Endangered –")                   ~ "Critically Endangered",
+    str_detect(iucn_cat, "Endangered –") & !str_detect(iucn_cat,"Crit") ~ "Endangered",
+    str_detect(iucn_cat, "Extinct in the Wild") |
+      str_detect(iucn_cat, "Extinct –")                                  ~ "Extinct (in the Wild)",
+    TRUE                                                               ~ NA_character_
+  )) %>%
+  filter(!is.na(label))
+
+# 9.3 - Precompute a common x– & y–range so every panel lines up
+year_range <- range(df_cat$year, na.rm=TRUE)
+# pad the sentiment axis to nice round numbers
+y_min <- floor(min(df_cat$ensemble_z, na.rm=TRUE))
+y_max <- ceiling(max(df_cat$ensemble_z, na.rm=TRUE))
+y_range <- c(y_min, y_max)
+
+# 9.4 - Build one ggplot for each category
+plots <- lapply(cats, function(cat) {
+  dat <- df_cat %>% filter(label == cat)
+  ggplot(dat, aes(x=year, y=ensemble_z)) +
+    # coloured background + black border
+    geom_rect(aes(xmin=-Inf,xmax=Inf,ymin=-Inf,ymax=Inf),
+              fill = cat_cols[cat],
+              color = "black", size = 0.6) +
+    # raw points
+    geom_point(color = "grey30", alpha = 0.5, size = 2) +
+    # linear trend
+    geom_smooth(method="lm", se=FALSE,
+                color="black", linewidth=0.8) +
+    # zero‐line
+    geom_hline(yintercept=0, linetype="dotted", color="grey60") +
+    # enforce same scales
+    scale_x_continuous(
+      limits = year_range,
+      breaks = c(1990, 2000, 2010),
+      expand = c(0,0)
+    ) +
+    scale_y_continuous(
+      limits = y_range,
+      breaks = c(y_min, 0, y_max),
+      expand = c(0,0)
+    ) +
+    # only the first panel gets a y‐axis label,
+    # and only the very bottom row (here: all) gets the x‐axis label
+    labs(
+      title = cat,
+      x = "Year",
+      y = if (cat == cats[1]) "Sentiment score" else NULL
+    ) +
+    theme_minimal(base_family="Helvetica") +
+    theme(
+      plot.title       = element_text(face="bold", size=12, hjust=0.5),
+      axis.title.y     = element_text(size=10, margin=margin(r=4)),
+      axis.title.x     = element_text(size=10, margin=margin(t=4)),
+      axis.text.x      = element_text(size=9),
+      axis.text.y      = if (cat == cats[1]) element_text(size=9) else element_blank(),
+      axis.ticks.y     = if (cat == cats[1]) element_line() else element_blank(),
+      panel.grid       = element_blank(),
+      plot.margin      = margin(2,2,2,2)
+    )
+})
+
+# 9.5 — Arrange & save
+fig9 = wrap_plots(plots, nrow = 1)
+print(fig9)
+
+ggsave(
+  filename = file.path(path_figs, "fig9_sentiment_by_category.png"),
+  plot     = fig9,
+  width    = 12, height = 4, dpi = 300
 )
   
