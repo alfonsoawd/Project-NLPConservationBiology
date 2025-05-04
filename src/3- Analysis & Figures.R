@@ -24,7 +24,7 @@ invisible(lapply(pkgs, function(p) {
 # 0.2 ─ Define paths ----------------------------------------------------------
 current_folder  <- dirname(rstudioapi::getActiveDocumentContext()$path)
 project_folder  <- dirname(current_folder)
-path_data       <- file.path(project_folder, "data", "data_with_score.csv")
+path_data       <- file.path(project_folder, "data", "3- data_with_score.csv")
 path_shp        <- file.path(project_folder, "data", "World Shapefile",
                              "world-administrative-boundaries.shp")
 path_fig        <- file.path(project_folder, "report", "Figures")

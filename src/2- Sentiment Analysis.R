@@ -34,10 +34,10 @@ setwd(current_folder)
 project_folder = dirname(getwd())
 
 # Path to abstract data
-path_data = file.path(project_folder, "data", "data_with_info.csv")
+path_data = file.path(project_folder, "data", "2- data_with_info.csv")
 
 # Path to save final output
-path_save = file.path(project_folder, "data", "data_with_score.csv")
+path_save = file.path(project_folder, "data", "3- data_with_score.csv")
 
 #-------------------------------------------------
 # Step 0.3 Import data

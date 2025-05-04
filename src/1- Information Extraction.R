@@ -34,7 +34,7 @@ setwd(current_folder)
 project_folder = dirname(getwd())
 
 # Path to abstract data
-path_data = file.path(project_folder, "data", "data.csv")
+path_data = file.path(project_folder, "data", "1- data.csv")
 
 # Path to world countries Shapefile
 path_shp = file.path(project_folder, "data", "World Shapefile", 
@@ -44,7 +44,7 @@ path_shp = file.path(project_folder, "data", "World Shapefile",
 path_map = file.path(project_folder, "data", "country_mapping.csv")
 
 # Path to save final output
-path_save = file.path(project_folder, "data", "data_with_info.csv")
+path_save = file.path(project_folder, "data", "2- data_with_info.csv")
 
 #-------------------------------------------------
 # Step 0.3 Import data
