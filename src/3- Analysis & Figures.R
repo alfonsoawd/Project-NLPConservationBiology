@@ -132,8 +132,6 @@ p2 <- ggplot(pd, aes(x=plot_val, y=lemma, fill=sentiment)) +
   scale_fill_manual(values=c(negative="#C24A4A", positive="#5F94C3")) +
   scale_x_continuous(labels=abs, expand=expansion(mult=c(0.05,0.1))) +
   labs(
-    title    = "Top Positive vs. Negative Contributors",
-    subtitle = "Mirror‐bar of the 15 words with largest (count × AFINN-score)",
     x        = "Weighted Contribution\n(count × score)",
     y        = NULL,
     fill     = "Sentiment"
@@ -153,7 +151,7 @@ p2 <- ggplot(pd, aes(x=plot_val, y=lemma, fill=sentiment)) +
 ggsave(
   filename = file.path(path_fig, "fig2_weighted_words.png"),
   plot     = p2,
-  width    = 6, height = 8, dpi = 300
+  width    = 6, height = 6, dpi = 300
 )
 
 
